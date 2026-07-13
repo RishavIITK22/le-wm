@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Hydra and experiment outputs
+outputs/
+multirun/
+wandb/
+*.log
+
+# Large local data and generated media
+*.h5
+*.hdf5
+*.lance/
+*.mp4
+datasets/
+
+# Model artifacts
+*.ckpt
+*.pt

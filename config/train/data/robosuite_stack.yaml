@@ -1,0 +1,12 @@
+# This config expects a stable-worldmodel-compatible HDF5 file with flat
+# temporal columns named `pixels` and `action`. Raw robosuite / robomimic files
+# whose trajectories live under data/demo_*/obs/... need conversion first.
+dataset:
+  name: robosuite_stack_panda_frontview_upright.h5
+  num_steps: ${eval:'${num_preds} + ${history_size}'}
+  frameskip: 1
+  keys_to_load:
+    - pixels
+    - action
+  keys_to_cache:
+    - action

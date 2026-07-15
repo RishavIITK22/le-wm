@@ -7,6 +7,7 @@ import lightning as pl
 import stable_pretraining as spt
 import stable_worldmodel as swm
 import torch
+from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import WandbLogger
 from omegaconf import OmegaConf, open_dict
 
@@ -82,7 +83,18 @@ def run(cfg):
     ##       model / optim      ##
     ##############################
 
+    if cfg.get("init_weights") and cfg.get("resume_checkpoint"):
+        raise ValueError("Use only one of init_weights or resume_checkpoint")
+
     world_model = hydra.utils.instantiate(cfg.model)
+
+    if cfg.get("init_weights"):
+        weights_path = Path(cfg.init_weights).expanduser().resolve()
+        if not weights_path.is_file():
+            raise FileNotFoundError(f"init_weights not found: {weights_path}")
+        state_dict = torch.load(weights_path, map_location="cpu", weights_only=True)
+        world_model.load_state_dict(state_dict, strict=True)
+        print(f"Loaded model weights from {weights_path}", flush=True)
 
     optimizers = {
         'model_opt': {
@@ -120,21 +132,35 @@ def run(cfg):
     object_dump_callback = SaveCkptCallback(
         run_name=cfg.output_model_name, cfg=cfg.model, epoch_interval=1,
     )
+    lightning_checkpoint = ModelCheckpoint(
+        dirpath=run_dir / "lightning",
+        filename="last",
+        save_last=True,
+        save_top_k=0,
+        every_n_epochs=1,
+        save_on_train_epoch_end=True,
+    )
 
     trainer = pl.Trainer(
         **cfg.trainer,
-        callbacks=[object_dump_callback],
+        callbacks=[object_dump_callback, lightning_checkpoint],
         num_sanity_val_steps=1,
         logger=logger,
         enable_checkpointing=True,
     )
 
-    ckpt_path = run_dir / f"{cfg.output_model_name}_weights.ckpt"
+    resume_path = None
+    if cfg.get("resume_checkpoint"):
+        resume_path = Path(cfg.resume_checkpoint).expanduser().resolve()
+        if not resume_path.is_file():
+            raise FileNotFoundError(f"resume_checkpoint not found: {resume_path}")
+
     manager = spt.Manager(
         trainer=trainer,
         module=world_model,
         data=data_module,
-        ckpt_path=ckpt_path if ckpt_path.exists() else None,
+        ckpt_path=resume_path,
+        weights_only=False,
     )
 
     manager()

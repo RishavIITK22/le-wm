@@ -7,6 +7,14 @@ defaults:
 output_model_name: lewm
 subdir: ${hydra:job.id}
 
+# Optional model-only checkpoint produced by SaveCkptCallback. This restores
+# network weights but starts a fresh optimizer, scheduler, and epoch counter.
+init_weights: null
+
+# Optional full Lightning checkpoint. Unlike init_weights, this restores the
+# optimizer, scheduler, epoch, global step, and callback state exactly.
+resume_checkpoint: null
+
 num_workers: 6
 train_split: 0.9
 seed: 3072
